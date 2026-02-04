@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>QRコードゲーム2</title>
+    <link rel="stylesheet" href="src/style.css?v=20260204l" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="topbar">
+        <div class="topbar-main">
+          <h1>挑戦状：コードの迷宮を突破せよ！</h1>
+          <p class="sub">ランで進んで、バグをなおそう。きみのタイプは？</p>
+        </div>
+        <button id="audio-toggle-btn" class="btn audio-toggle-btn" type="button" aria-pressed="true">
+          SOUND ON
+        </button>
+      </header>
+
+      <section id="screen-lp" class="screen active">
+        <div class="card">
+          <h2>難易度をえらぼう</h2>
+          <div id="difficulty-list" class="difficulty-list"></div>
+          <p class="help">あとで何度でも変更できます。</p>
+          <button id="start-btn" class="btn primary">スタート</button>
+          <p class="guardian-note">保護者メモ：ゲーム中に個人情報入力はありません。</p>
+        </div>
+      </section>
+
+      <section id="screen-game" class="screen">
+        <div class="hud">
+          <span>ベスト <b id="hud-time">0</b>m</span>
+          <span>ミス <b id="hud-miss">0</b></span>
+          <span>バグ修正 <b id="hud-bug">0</b></span>
+          <span>進行 <b id="hud-distance">0</b>m</span>
+        </div>
+        <canvas id="game-canvas" width="360" height="640" aria-label="game"></canvas>
+        <div class="move-controls" aria-label="左右移動ボタン">
+          <button id="move-left-btn" class="btn move-btn" type="button">←</button>
+          <button id="move-right-btn" class="btn move-btn" type="button">→</button>
+        </div>
+        <p class="game-help">左右ボタンでよける / 画面タップでジャンプ</p>
+        <button id="quit-btn" class="btn subtle">結果を見る</button>
+      </section>
+
+      <section id="screen-result" class="screen">
+        <div class="card">
+          <h2>きみの診断結果</h2>
+          <p id="result-type-name" class="type-name">-</p>
+          <p id="result-type-comment" class="type-comment">-</p>
+
+          <div id="axis-bars" class="axis-bars"></div>
+
+          <ul class="score-list">
+            <li>合計スコア: <b id="result-score">0</b></li>
+            <li>バグ修正数: <b id="result-bug-found">0</b>/1</li>
+            <li>進行距離: <b id="result-distance">0</b>m</li>
+            <li>連続回避ベスト: <b id="result-streak">0</b></li>
+            <li>ミス回数: <b id="result-miss">0</b></li>
+          </ul>
+
+          <p class="guardian-note">
+            保護者向け：簡易診断です。お子さまの興味を見つけるきっかけとしてご利用ください。
+          </p>
+
+          <div class="result-buttons">
+            <a id="cta-btn" class="btn primary" href="#">予約する</a>
+            <button id="retry-btn" class="btn">もう1回挑戦</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <section id="bug-modal" class="modal hidden" aria-live="polite">
+      <div class="modal-card">
+        <h3 id="bug-title">バグなおし</h3>
+        <p id="bug-desc">ブロックを2こえらんで、左からならべよう！</p>
+        <p id="bug-scene" class="bug-scene"></p>
+        <div class="bug-howto">①えらぶ → ②ならべる → ③なおす！</div>
+        <pre id="bug-code" class="bug-code"></pre>
+        <div id="bug-slots" class="bug-slots"></div>
+        <div id="bug-blocks" class="bug-blocks"></div>
+        <div class="bug-actions">
+          <button id="bug-run-btn" class="btn primary" type="button">これでなおす！</button>
+          <button id="bug-reset-btn" class="btn" type="button">リセット</button>
+        </div>
+        <p id="bug-feedback" class="bug-feedback"></p>
+      </div>
+    </section>
+
+    <section id="reserve-prompt-modal" class="modal hidden" aria-live="polite">
+      <div class="modal-card reserve-prompt-card">
+        <h3>ここまで進めたきみへ</h3>
+        <p id="reserve-prompt-lead" class="reserve-prompt-lead">
+          バグなおしもクリアして500m突破なんて、きみは天才だ！！ 次はほんもののプログラミング体験にチャレンジしてみよう。
+        </p>
+        <p class="reserve-prompt-sub">
+          おもしろそうなら体験予約へ。いまは続けたいなら、すぐリスタートできるよ。
+        </p>
+        <div class="reserve-prompt-actions">
+          <button id="reserve-go-btn" class="btn primary" type="button">体験予約ページへ</button>
+          <button id="reserve-restart-btn" class="btn" type="button">今回はリスタート</button>
+        </div>
+      </div>
+    </section>
+
+    <script type="module" src="src/main.js?v=20260204m"></script>
+  </body>
+</html>

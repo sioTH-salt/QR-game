@@ -1,0 +1,90 @@
+{
+  "app": {
+    "title": "QRコードゲーム2",
+    "language": "ja",
+    "cta_url": "https://www.programming-cloud.com/trial/",
+    "privacy_note": "ゲーム中に個人情報入力はありません。"
+  },
+  "stage": {
+    "default_stage_id": "flyer_default_001",
+    "time_limit_sec": 90,
+    "mid_bug_event_count": 1,
+    "final_bug_quiz_count": 1
+  },
+  "difficulty": {
+    "easy": {
+      "label": "易しい",
+      "speed": 0.5,
+      "gimmick_level": 0,
+      "bug_frequency": 0
+    },
+    "easy_plus": {
+      "label": "やや易しい",
+      "speed": 0.68,
+      "gimmick_level": 1,
+      "bug_frequency": 0
+    },
+    "normal": {
+      "label": "ふつう",
+      "speed": 0.85,
+      "gimmick_level": 1,
+      "bug_frequency": 1
+    },
+    "hard_minus": {
+      "label": "やや難しい",
+      "speed": 1.05,
+      "gimmick_level": 2,
+      "bug_frequency": 1
+    },
+    "hard": {
+      "label": "難しい",
+      "speed": 1.25,
+      "gimmick_level": 3,
+      "bug_frequency": 2
+    }
+  },
+  "diagnosis": {
+    "weights": {
+      "bug_find_rate": 40,
+      "timing_accuracy": 25,
+      "breakthrough_power": 25,
+      "stability": 10
+    },
+    "rules": {
+      "debug_detective": {
+        "condition": "bug_find_rate_top && bug_find_rate>=40"
+      },
+      "logical_runner": {
+        "condition": "timing_accuracy_top && timing_accuracy>=25"
+      },
+      "sprint_challenger": {
+        "condition": "breakthrough_power_top && breakthrough_power>=25"
+      },
+      "adapter": {
+        "condition": "axis_diff_within_5"
+      }
+    }
+  },
+  "analytics": {
+    "enabled": true,
+    "events": [
+      "page_view_qr",
+      "game_start",
+      "game_quit_mid",
+      "game_complete",
+      "bug_mid_start",
+      "bug_mid_complete",
+      "bug_final_start",
+      "bug_final_complete",
+      "cta_click",
+      "form_visit"
+    ],
+    "common_params": [
+      "stage_id",
+      "difficulty",
+      "session_id",
+      "device_hint",
+      "lang"
+    ]
+  }
+}
