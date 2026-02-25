@@ -1,6 +1,6 @@
 const FALLBACK_CONFIG = {
   app: {
-    title: "QRコードゲーム2",
+    title: "バグなおしラン",
     language: "ja",
     cta_url: "/reserve.html",
     privacy_note: "ゲーム中に個人情報入力はありません。"
@@ -12,11 +12,15 @@ const FALLBACK_CONFIG = {
     final_bug_quiz_count: 1
   },
   difficulty: {
-    easy: { label: "易しい", speed: 0.5, gimmick_level: 0, bug_frequency: 0 },
-    easy_plus: { label: "やや易しい", speed: 0.68, gimmick_level: 1, bug_frequency: 0 },
-    normal: { label: "ふつう", speed: 0.85, gimmick_level: 1, bug_frequency: 1 },
-    hard_minus: { label: "やや難しい", speed: 1.05, gimmick_level: 2, bug_frequency: 1 },
-    hard: { label: "難しい", speed: 1.25, gimmick_level: 3, bug_frequency: 2 }
+    easy: {
+      label: "かんたん",
+      speed: 0.55,
+      gimmick_level: 0,
+      bug_frequency: 0,
+      spawn_chance: 0.5
+    },
+    normal: { label: "ふつう", speed: 0.85, gimmick_level: 1, bug_frequency: 1, spawn_chance: 1 },
+    hard: { label: "むずかしい", speed: 1.05, gimmick_level: 2, bug_frequency: 1, spawn_chance: 1 }
   }
 };
 
@@ -39,7 +43,19 @@ const TYPE_META = {
   }
 };
 
-const DIFFICULTY_ORDER = ["easy", "easy_plus", "normal", "hard_minus", "hard"];
+const DIFFICULTY_ORDER = ["easy", "normal", "hard"];
+const TOTAL_BUGS = 4;
+const BIG_ENEMY_SIZE = { w: 180, h: 210 };
+const SMALL_ENEMY_SIZE = { w: 84, h: 68 };
+const HAZARD_START_DISTANCE = 100;
+const BIG_ENEMY_DISTANCE = 500;
+const JUMP_BUG_TRIGGER_OFFSET = 60;
+const BIG_ENEMY_PREVIEW_MS = 1600;
+const BIG_ENEMY_RETURN_MS = 480;
+const BIG_ENEMY_PREVIEW_PAN = 240;
+const JUMP_TRIGGER_DISTANCE = 150;
+const SKILL_DOUBLE_JUMP_DISTANCE = 1000;
+const SKILL_STOMP_DISTANCE = 2000;
 const RESERVE_DISTANCE_GATE_M = 500;
 const MISS_MESSAGES_500 = [
   "まずは500mを目指そう！",
@@ -66,57 +82,379 @@ const MISS_MESSAGES_500 = [
 ];
 
 const PUZZLES = {
-  mid: {
-    title: "バグなおし",
-    desc: "カベがすりぬけた！2つえらんでなおそう。",
-    scene: "いま：ズレ 40  /  なおす：ズレ 0",
-    slots: ["① 1つめ", "② 2つめ"],
-    blocks: [
-      { id: "set_x_0", label: "ズレを0にする", bad: false },
-      { id: "hit_on", label: "ぶつかるをON", bad: false },
-      { id: "set_x_40", label: "ズレを40にする", bad: true },
-      { id: "pass_on", label: "すりぬけON", bad: true }
-    ],
-    answer: ["set_x_0", "hit_on"],
-    buildCode: (state) => [`いまのズレ = ${state.collisionBugOffset}`, "めざすズレ = 0"].join("\n")
+  move_right: {
+    variants: {
+      easy: {
+        title: "ばぐなおし：みぎ",
+        status: "みぎにすすめない",
+        desc: "みぎにすすめるようにしよう。",
+        scene: "いま：みぎにすすめない / なおす：みぎにすすめる",
+        slots: ["ここ"],
+        slotHints: ["みぎ"],
+        blocks: [
+          { id: "move_right", label: "みぎにすすめるようにする", bad: false },
+          { id: "move_left", label: "ひだりにすすめるようにする", bad: true },
+          { id: "move_right_off", label: "みぎにすすめない", bad: true }
+        ],
+        answer: ["move_right"],
+        hints: ["ひんと：『みぎにすすめるようにする』をいれてみよう。", "こたえ：みぎにすすめるようにする"],
+        answerText: "こたえ：みぎにすすめるようにする",
+        buildCode: "いま：みぎ = できない\nめざす：みぎ = できる"
+      },
+      normal: {
+        title: "バグなおし：右へ",
+        status: "右にすすめない",
+        desc: "右にすすめるようにしよう。",
+        scene: "いま：右にすすめない / なおす：右にすすめる",
+        slots: ["ここ"],
+        slotHints: ["右"],
+        blocks: [
+          { id: "move_right", label: "右にすすめるようにする", bad: false },
+          { id: "move_left", label: "左にすすめるようにする", bad: true },
+          { id: "move_right_off", label: "右にすすめない", bad: true }
+        ],
+        answer: ["move_right"],
+        hints: ["ヒント：『右にすすめるようにする』を入れてみよう。", "こたえ：右にすすめるようにする"],
+        answerText: "こたえ：右にすすめるようにする",
+        buildCode: "いま：右 = できない\nめざす：右 = できる"
+      },
+      hard: {
+        title: "バグなおし：右へ",
+        status: "右にすすめない",
+        desc: "条件をつかって右にすすめるようにしよう。",
+        scene: "いま：右にすすめない / なおす：もし 右側をタップしたら 右にすすめる",
+        slots: ["もし", "する"],
+        slotHints: ["右側をタップしたら", "右にすすめる"],
+        blocks: [
+          { id: "if_tap_right", label: "もし 右側をタップしたら", bad: false },
+          { id: "if_tap_left", label: "もし 左側をタップしたら", bad: true },
+          { id: "move_right", label: "右にすすめるようにする", bad: false },
+          { id: "move_left", label: "左にすすめるようにする", bad: true }
+        ],
+        answer: ["if_tap_right", "move_right"],
+        hints: [
+          "ヒント：『もし 右側をタップしたら』を入れてみよう。",
+          "ヒント：『右にすすめるようにする』を入れてみよう。"
+        ],
+        answerText: "こたえ：もし 右側をタップしたら → 右にすすめるようにする",
+        buildCode: "もし 右側をタップしたら\n  右にすすめるようにする"
+      }
+    }
   },
-  final: {
-    title: "さいごのバグなおし",
-    desc: "スピードをちょうどよくしよう！2つえらんでね。",
-    scene: "いま：はやさのうえ 99  /  なおす：はやさのうえ 6",
-    slots: ["① 1つめ", "② 2つめ"],
-    blocks: [
-      { id: "set_speed_safe", label: "はやさのうえを6にする", bad: false },
-      { id: "apply_limit", label: "うえをつかう", bad: false },
-      { id: "set_speed_99", label: "はやさのうえを99にする", bad: true },
-      { id: "limit_off", label: "うえをOFF", bad: true }
-    ],
-    answer: ["set_speed_safe", "apply_limit"],
-    buildCode: () => ["いまのはやさのうえ = ?", "めざすはやさのうえ = 6"].join("\n")
+  move_left: {
+    variants: {
+      easy: {
+        title: "ばぐなおし：ひだり",
+        status: "ひだりにすすめない",
+        desc: "ひだりにすすめるようにしよう。",
+        scene: "いま：ひだりにすすめない / なおす：ひだりにすすめる",
+        slots: ["ここ"],
+        slotHints: ["ひだり"],
+        blocks: [
+          { id: "move_left", label: "ひだりにすすめるようにする", bad: false },
+          { id: "move_right", label: "みぎにすすめるようにする", bad: true },
+          { id: "move_left_off", label: "ひだりにすすめない", bad: true }
+        ],
+        answer: ["move_left"],
+        hints: ["ひんと：『ひだりにすすめるようにする』をいれてみよう。", "こたえ：ひだりにすすめるようにする"],
+        answerText: "こたえ：ひだりにすすめるようにする",
+        buildCode: "いま：ひだり = できない\nめざす：ひだり = できる"
+      },
+      normal: {
+        title: "バグなおし：左へ",
+        status: "左にすすめない",
+        desc: "左にすすめるようにしよう。",
+        scene: "いま：左にすすめない / なおす：左にすすめる",
+        slots: ["ここ"],
+        slotHints: ["左"],
+        blocks: [
+          { id: "move_left", label: "左にすすめるようにする", bad: false },
+          { id: "move_right", label: "右にすすめるようにする", bad: true },
+          { id: "move_left_off", label: "左にすすめない", bad: true }
+        ],
+        answer: ["move_left"],
+        hints: ["ヒント：『左にすすめるようにする』を入れてみよう。", "こたえ：左にすすめるようにする"],
+        answerText: "こたえ：左にすすめるようにする",
+        buildCode: "いま：左 = できない\nめざす：左 = できる"
+      },
+      hard: {
+        title: "バグなおし：左へ",
+        status: "左にすすめない",
+        desc: "条件をつかって左にすすめるようにしよう。",
+        scene: "いま：左にすすめない / なおす：もし 左側をタップしたら 左にすすめる",
+        slots: ["もし", "する"],
+        slotHints: ["左側をタップしたら", "左にすすめる"],
+        blocks: [
+          { id: "if_tap_left", label: "もし 左側をタップしたら", bad: false },
+          { id: "if_tap_right", label: "もし 右側をタップしたら", bad: true },
+          { id: "move_left", label: "左にすすめるようにする", bad: false },
+          { id: "move_right", label: "右にすすめるようにする", bad: true }
+        ],
+        answer: ["if_tap_left", "move_left"],
+        hints: [
+          "ヒント：『もし 左側をタップしたら』を入れてみよう。",
+          "ヒント：『左にすすめるようにする』を入れてみよう。"
+        ],
+        answerText: "こたえ：もし 左側をタップしたら → 左にすすめるようにする",
+        buildCode: "もし 左側をタップしたら\n  左にすすめるようにする"
+      }
+    }
+  },
+  jump: {
+    variants: {
+      easy: {
+        title: "ばぐなおし：じゃんぷ",
+        status: "じゃんぷできない",
+        desc: "じゃんぷできるようにしよう。",
+        scene: "いま：じゃんぷ できない / なおす：じゃんぷ できる",
+        slots: ["ここ"],
+        slotHints: ["じゃんぷ"],
+        blocks: [
+          { id: "jump_on", label: "じゃんぷをできるようにする", bad: false },
+          { id: "jump_off", label: "じゃんぷをできなくする", bad: true },
+          { id: "tap_ignore", label: "たっぷをむしする", bad: true }
+        ],
+        answer: ["jump_on"],
+        hints: ["ひんと：『じゃんぷをできるようにする』をいれてみよう。", "こたえ：じゃんぷをできるようにする"],
+        answerText: "こたえ：じゃんぷをできるようにする",
+        buildCode: "いま：じゃんぷ = できない\nめざす：じゃんぷ = できる"
+      },
+      normal: {
+        title: "バグなおし：ジャンプ",
+        status: "ジャンプできない",
+        desc: "ジャンプできるようにしよう。",
+        scene: "いま：ジャンプ できない / なおす：ジャンプ できる",
+        slots: ["ここ"],
+        slotHints: ["ジャンプ"],
+        blocks: [
+          { id: "jump_on", label: "ジャンプをできるようにする", bad: false },
+          { id: "jump_off", label: "ジャンプをできなくする", bad: true },
+          { id: "tap_ignore", label: "タップをむしする", bad: true }
+        ],
+        answer: ["jump_on"],
+        hints: ["ヒント：『ジャンプをできるようにする』を入れてみよう。", "こたえ：ジャンプをできるようにする"],
+        answerText: "こたえ：ジャンプをできるようにする",
+        buildCode: "いま：ジャンプ = できない\nめざす：ジャンプ = できる"
+      },
+      hard: {
+        title: "バグなおし：ジャンプ",
+        status: "ジャンプできない",
+        desc: "条件をつかってジャンプできるようにしよう。",
+        scene: "いま：ジャンプ できない / なおす：もし まんなかをタップしたら ジャンプできる",
+        slots: ["もし", "する"],
+        slotHints: ["まんなかをタップしたら", "ジャンプ"],
+        blocks: [
+          { id: "if_tap_center", label: "もし まんなかをタップしたら", bad: false },
+          { id: "if_tap_side", label: "もし すみをタップしたら", bad: true },
+          { id: "jump_on", label: "ジャンプをできるようにする", bad: false },
+          { id: "jump_off", label: "ジャンプをできなくする", bad: true }
+        ],
+        answer: ["if_tap_center", "jump_on"],
+        hints: [
+          "ヒント：『もし まんなかをタップしたら』を入れてみよう。",
+          "ヒント：『ジャンプをできるようにする』を入れてみよう。"
+        ],
+        answerText: "こたえ：もし まんなかをタップしたら → ジャンプをできるようにする",
+        buildCode: "もし まんなかをタップしたら\n  ジャンプをできるようにする"
+      }
+    }
+  },
+  shrink: {
+    variants: {
+      easy: {
+        title: "ばぐなおし：おおきなてき",
+        status: "おおきなてきがでかすぎる",
+        desc: "てきをちいさくしてとびこえよう。",
+        scene: "いま：てきがおおきい / なおす：てきをちいさくする",
+        slots: ["ここ"],
+        slotHints: ["ちいさく"],
+        blocks: [
+          { id: "size_small", label: "てきをちいさくする", bad: false },
+          { id: "size_big", label: "てきをおおきくする", bad: true },
+          { id: "hitbox_big", label: "あたりはんていをおおきくする", bad: true }
+        ],
+        answer: ["size_small"],
+        hints: ["ひんと：『てきをちいさくする』をいれてみよう。", "こたえ：てきをちいさくする"],
+        answerText: "こたえ：てきをちいさくする",
+        buildCode: "いま：てきさいず = おおきい\nめざす：てきさいず = ちいさい"
+      },
+      normal: {
+        title: "バグなおし：巨大な敵",
+        status: "巨大な敵が大きすぎる",
+        desc: "敵を小さくして飛びこえよう。",
+        scene: "いま：敵が大きい / なおす：敵を小さくする",
+        slots: ["ここ"],
+        slotHints: ["小"],
+        blocks: [
+          { id: "size_small", label: "敵を小さくする", bad: false },
+          { id: "size_big", label: "敵を大きくする", bad: true },
+          { id: "hitbox_big", label: "当たり判定を大きくする", bad: true }
+        ],
+        answer: ["size_small"],
+        hints: ["ヒント：『敵を小さくする』を入れてみよう。", "こたえ：敵を小さくする"],
+        answerText: "こたえ：敵を小さくする",
+        buildCode: "いま：敵サイズ = 大\nめざす：敵サイズ = 小"
+      },
+      hard: {
+        title: "バグなおし：巨大な敵",
+        status: "巨大な敵が大きすぎる",
+        desc: "敵を小さくして飛びこえよう。",
+        scene: "いま：敵が大きい / なおす：敵を小さくする",
+        slots: ["①", "②"],
+        slotHints: ["小", "当たり"],
+        blocks: [
+          { id: "size_small", label: "敵を小さくする", bad: false },
+          { id: "hitbox_small", label: "当たり判定を小さくする", bad: false },
+          { id: "size_big", label: "敵を大きくする", bad: true },
+          { id: "hitbox_big", label: "当たり判定を大きくする", bad: true }
+        ],
+        answer: ["size_small", "hitbox_small"],
+        hints: [
+          "ヒント：小さくするブロックが必要だよ。",
+          "ヒント：『敵を小さくする → 当たり判定を小さくする』だよ。"
+        ],
+        answerText: "こたえ：敵を小さくする → 当たり判定を小さくする",
+        buildCode: "いま：敵サイズ = 大\nめざす：敵サイズ = 小"
+      }
+    }
+  },
+  double_jump: {
+    category: "skill",
+    variants: {
+      easy: {
+        title: "すきるかいほう：にだんじゃんぷ",
+        status: "にだんじゃんぷをかいほう",
+        desc: "にだんじゃんぷができるようにしよう。",
+        scene: "いま：1かいだけ / なおす：にだんじゃんぷ",
+        slots: ["ここ"],
+        blocks: [
+          { id: "double_jump_on", label: "にだんじゃんぷをできるようにする", bad: false },
+          { id: "double_jump_off", label: "にだんじゃんぷをできなくする", bad: true },
+          { id: "jump_one", label: "1かいだけにする", bad: true }
+        ],
+        answer: ["double_jump_on"],
+        hints: [
+          "ひんと：『にだんじゃんぷをできるようにする』をいれてみよう。",
+          "こたえ：にだんじゃんぷをできるようにする"
+        ],
+        answerText: "こたえ：にだんじゃんぷをできるようにする",
+        buildCode: "いま：じゃんぷ = 1かい\nめざす：じゃんぷ = 2かい"
+      },
+      normal: {
+        title: "スキル解放：二段ジャンプ",
+        status: "二段ジャンプを解放",
+        desc: "二段ジャンプができるようにしよう。",
+        scene: "いま：1回だけ / なおす：二段ジャンプ",
+        slots: ["ここ"],
+        blocks: [
+          { id: "double_jump_on", label: "二段ジャンプをできるようにする", bad: false },
+          { id: "double_jump_off", label: "二段ジャンプをできなくする", bad: true },
+          { id: "jump_one", label: "1回だけにする", bad: true }
+        ],
+        answer: ["double_jump_on"],
+        hints: ["ヒント：『二段ジャンプをできるようにする』を入れてみよう。", "こたえ：二段ジャンプをできるようにする"],
+        answerText: "こたえ：二段ジャンプをできるようにする",
+        buildCode: "いま：ジャンプ = 1回\nめざす：ジャンプ = 2回"
+      },
+      hard: {
+        title: "スキル解放：二段ジャンプ",
+        status: "二段ジャンプを解放",
+        desc: "条件をつかって2回目のジャンプをできるようにしよう。",
+        scene: "いま：1回だけ / なおす：もし 2回目なら もう1回ジャンプできる",
+        slots: ["もし", "する"],
+        blocks: [
+          { id: "if_second_jump", label: "もし 2回目なら", bad: false },
+          { id: "if_first_jump", label: "もし 1回目なら", bad: true },
+          { id: "double_jump_on", label: "もう1回ジャンプできるようにする", bad: false },
+          { id: "double_jump_off", label: "もう1回ジャンプできない", bad: true }
+        ],
+        answer: ["if_second_jump", "double_jump_on"],
+        hints: ["ヒント：『もし 2回目なら』を入れてみよう。", "ヒント：『もう1回ジャンプできるようにする』を入れてみよう。"],
+        answerText: "こたえ：もし 2回目なら → もう1回ジャンプできるようにする",
+        buildCode: "もし 2回目なら\n  もう1回ジャンプできるようにする"
+      }
+    }
+  },
+  stomp: {
+    category: "skill",
+    variants: {
+      easy: {
+        title: "すきるかいほう：ふみつけ",
+        status: "うえからふんだらたおせる",
+        desc: "てきのうえをふんだらたおせるようにしよう。",
+        scene: "いま：ふんでもだめ / なおす：ふんだらたおせる",
+        slots: ["ここ"],
+        blocks: [
+          { id: "stomp_on", label: "うえからふんだらたおせるようにする", bad: false },
+          { id: "stomp_off", label: "ふんでもたおせない", bad: true },
+          { id: "touch_damage", label: "さわったらだめーじ", bad: true }
+        ],
+        answer: ["stomp_on"],
+        hints: [
+          "ひんと：『うえからふんだらたおせるようにする』をいれてみよう。",
+          "こたえ：うえからふんだらたおせるようにする"
+        ],
+        answerText: "こたえ：うえからふんだらたおせるようにする",
+        buildCode: "いま：ふんでも たおせない\nめざす：ふんだら たおせる"
+      },
+      normal: {
+        title: "スキル解放：踏みつけ",
+        status: "上から踏んだら倒せる",
+        desc: "敵の上を踏んだら倒せるようにしよう。",
+        scene: "いま：踏んでもダメ / なおす：踏んだら倒せる",
+        slots: ["ここ"],
+        blocks: [
+          { id: "stomp_on", label: "上から踏んだら倒せるようにする", bad: false },
+          { id: "stomp_off", label: "踏んでも倒せない", bad: true },
+          { id: "touch_damage", label: "触ったらダメージ", bad: true }
+        ],
+        answer: ["stomp_on"],
+        hints: ["ヒント：『上から踏んだら倒せるようにする』を入れてみよう。", "こたえ：上から踏んだら倒せるようにする"],
+        answerText: "こたえ：上から踏んだら倒せるようにする",
+        buildCode: "いま：踏んでも 倒せない\nめざす：踏んだら 倒せる"
+      },
+      hard: {
+        title: "スキル解放：踏みつけ",
+        status: "上から踏んだら倒せる",
+        desc: "条件をつかって踏みつけで倒せるようにしよう。",
+        scene: "いま：踏んでもダメ / なおす：もし 上から踏んだら 倒せる",
+        slots: ["もし", "する"],
+        blocks: [
+          { id: "if_stomp", label: "もし 上から踏んだら", bad: false },
+          { id: "if_touch", label: "もし さわったら", bad: true },
+          { id: "stomp_on", label: "敵を倒せるようにする", bad: false },
+          { id: "stomp_off", label: "敵を倒せない", bad: true }
+        ],
+        answer: ["if_stomp", "stomp_on"],
+        hints: ["ヒント：『もし 上から踏んだら』を入れてみよう。", "ヒント：『敵を倒せるようにする』を入れてみよう。"],
+        answerText: "こたえ：もし 上から踏んだら → 敵を倒せるようにする",
+        buildCode: "もし 上から踏んだら\n  敵を倒せるようにする"
+      }
+    }
   }
 };
+
+function getPuzzleDefinition(puzzleKey) {
+  const entry = PUZZLES[puzzleKey];
+  if (!entry) {
+    return null;
+  }
+  const diffKey = game.difficulty;
+  return entry.variants?.[diffKey] || entry.variants?.normal || null;
+}
 
 function puzzleHintText(active) {
   if (!active) {
     return "";
   }
-  if (active.puzzleKey === "mid") {
-    if (active.wrongAttempts === 0) {
-      return "ヒント：『ズレを0にする』を入れてみよう。";
-    }
-    if (active.wrongAttempts === 1) {
-      return "ヒント：左から『ズレを0にする → ぶつかるをON』だよ。";
-    }
-    return "こたえ：『ズレを0にする → ぶつかるをON』";
-  }
-
+  const hints = active.definition?.hints || [];
   if (active.wrongAttempts === 0) {
-    return "ヒント：『はやさのうえを6にする』を入れてみよう。";
+    return hints[0] || "ヒント：ブロックをえらんでみよう。";
   }
   if (active.wrongAttempts === 1) {
-    return "ヒント：左から『はやさのうえを6にする → うえをつかう』だよ。";
+    return hints[1] || hints[0] || "ヒント：もう一度ためしてみよう。";
   }
-  return "こたえ：『はやさのうえを6にする → うえをつかう』";
+  return hints[hints.length - 1] || "ヒント：もう一度ためしてみよう。";
 }
 
 function shuffleArray(input) {
@@ -146,6 +484,8 @@ const ui = {
   hudMiss: document.getElementById("hud-miss"),
   hudBug: document.getElementById("hud-bug"),
   hudDistance: document.getElementById("hud-distance"),
+  bugStatus: document.getElementById("bug-status"),
+  gameHelp: document.getElementById("game-help"),
   resultTypeName: document.getElementById("result-type-name"),
   resultTypeComment: document.getElementById("result-type-comment"),
   resultScore: document.getElementById("result-score"),
@@ -159,6 +499,7 @@ const ui = {
   reserveRestartBtn: document.getElementById("reserve-restart-btn"),
   axisBars: document.getElementById("axis-bars"),
   bugModal: document.getElementById("bug-modal"),
+  bugCard: document.querySelector("#bug-modal .modal-card"),
   bugTitle: document.getElementById("bug-title"),
   bugDesc: document.getElementById("bug-desc"),
   bugScene: document.getElementById("bug-scene"),
@@ -167,7 +508,9 @@ const ui = {
   bugBlocks: document.getElementById("bug-blocks"),
   bugRunBtn: document.getElementById("bug-run-btn"),
   bugResetBtn: document.getElementById("bug-reset-btn"),
-  bugFeedback: document.getElementById("bug-feedback")
+  bugFeedback: document.getElementById("bug-feedback"),
+  alertOverlay: document.getElementById("alert-overlay"),
+  alertOverlayText: document.getElementById("alert-overlay-text")
 };
 
 const canvas = document.getElementById("game-canvas");
@@ -209,17 +552,28 @@ const game = {
   bestStreak: 0,
   timingHits: 0,
   timingTotal: 0,
-  midBugDone: false,
-  finalBugDone: false,
-  collisionBugOffset: 40,
-  bugFixSolved: false,
-  glitchWallSpawned: false,
-  postFixWallSpawned: false,
+  moveRightBugDone: false,
+  moveLeftBugDone: false,
+  jumpBugDone: false,
+  shrinkBugDone: false,
+  moveRightFixSolved: false,
+  moveLeftFixSolved: false,
+  jumpFixSolved: false,
+  shrinkFixSolved: false,
+  doubleJumpSkillDone: false,
+  stompSkillDone: false,
+  doubleJumpUnlocked: false,
+  stompUnlocked: false,
+  doubleJumpUsed: false,
+  jumpTriggerSpawned: false,
+  bigEnemySpawned: false,
+  bigEnemyRef: null,
   runGraceMs: 0,
   coyoteMs: 0,
   jumpBufferMs: 0,
   pendingResetMs: 0,
   easyShieldUsed: false,
+  easyKeepProgressUsed: false,
   lastBadgeDistance: 0,
   toastText: "",
   toastMs: 0,
@@ -229,8 +583,17 @@ const game = {
   hitSubText: "",
   puzzleGuideShown: false,
   activePuzzle: null,
-  rafId: 0
+  rafId: 0,
+  overlayTimerId: 0,
+  cameraPanX: 0,
+  previewElapsedMs: 0,
+  previewActive: false,
+  previewPhase: "none"
 };
+
+const isEasyMode = () => game.difficulty === "easy";
+const wordProgram = () => (isEasyMode() ? "ぷろぐらむ" : "プログラム");
+const wordProgramming = () => (isEasyMode() ? "ぷろぐらみんぐ" : "プログラミング");
 
 const audioState = {
   ctx: null,
@@ -357,6 +720,15 @@ function playSfx(name) {
       playTone({ freq: 300, duration: 0.08, volume: 0.055, type: "square" });
       playTone({ freq: 240, duration: 0.1, volume: 0.06, type: "square", offset: 0.07 });
       break;
+    case "alert":
+      playTone({ freq: 520, duration: 0.08, volume: 0.07, type: "square" });
+      playTone({ freq: 420, duration: 0.08, volume: 0.065, type: "square", offset: 0.06 });
+      playTone({ freq: 360, duration: 0.1, volume: 0.06, type: "square", offset: 0.12 });
+      break;
+    case "stomp":
+      playTone({ freq: 190, duration: 0.08, volume: 0.08, type: "square" });
+      playTone({ freq: 140, duration: 0.1, volume: 0.07, type: "square", offset: 0.06 });
+      break;
     case "start":
       playTone({ freq: 392, duration: 0.07, volume: 0.055, type: "triangle" });
       playTone({ freq: 523, duration: 0.09, volume: 0.06, type: "triangle", offset: 0.07 });
@@ -479,7 +851,7 @@ function openReservePrompt() {
     const missMessage = getMissMessageByDistance(game.bestDistance);
     ui.reservePromptLead.textContent = `バグなおしもクリアして${Math.round(
       game.bestDistance
-    )}m突破なんて、きみは天才だ！！ ${missMessage} 次はほんもののプログラミング体験にチャレンジしてみよう。`;
+    )}m突破なんて、きみは天才だ！！ ${missMessage} 次はほんものの${wordProgramming()}体験にチャレンジしてみよう。`;
   }
   ui.reservePromptModal.classList.remove("hidden");
   track("reserve_prompt_shown", {
@@ -543,9 +915,20 @@ function resetGameplayStats() {
   game.pausedForBug = false;
   stopBgm();
   closeReservePrompt();
+  if (ui.alertOverlay) {
+    ui.alertOverlay.classList.add("hidden");
+  }
+  if (game.overlayTimerId) {
+    clearTimeout(game.overlayTimerId);
+    game.overlayTimerId = 0;
+  }
+  game.cameraPanX = 0;
+  game.previewElapsedMs = 0;
+  game.previewActive = false;
   game.bestDistance = 0;
   game.lastBadgeDistance = 0;
   game.easyShieldUsed = false;
+  game.easyKeepProgressUsed = false;
   game.toastText = "";
   game.toastMs = 0;
   game.startAt = 0;
@@ -557,18 +940,35 @@ function resetGameplayStats() {
   game.hitTitleText = "";
   game.hitSubText = "";
   game.puzzleGuideShown = false;
-  resetRunState();
+  resetRunState({ resetBugs: true });
 }
 
-function resetRunState() {
+function resetBugProgress() {
+  game.bugFound = 0;
+  game.moveRightBugDone = false;
+  game.moveLeftBugDone = false;
+  game.jumpBugDone = false;
+  game.shrinkBugDone = false;
+  game.moveRightFixSolved = false;
+  game.moveLeftFixSolved = false;
+  game.jumpFixSolved = false;
+  game.shrinkFixSolved = false;
+  game.doubleJumpSkillDone = false;
+  game.stompSkillDone = false;
+  game.doubleJumpUnlocked = false;
+  game.stompUnlocked = false;
+  game.doubleJumpUsed = false;
+}
+
+function resetRunState({ resetBugs = false } = {}) {
   inputState.left = false;
   inputState.right = false;
   game.distance = 0;
-  game.bugFound = 0;
   game.shakeMs = 0;
   game.runGraceMs = 900;
   game.coyoteMs = 0;
   game.jumpBufferMs = 0;
+  game.doubleJumpUsed = false;
   game.pendingResetMs = 0;
   game.player.x = 58;
   game.player.y = 500;
@@ -581,18 +981,120 @@ function resetRunState() {
   game.clearStreak = 0;
   game.timingHits = 0;
   game.timingTotal = 0;
-  game.midBugDone = false;
-  game.finalBugDone = false;
-  game.collisionBugOffset = 40;
-  game.bugFixSolved = false;
-  game.glitchWallSpawned = false;
-  game.postFixWallSpawned = false;
+  if (resetBugs) {
+    resetBugProgress();
+  }
+  game.bigEnemySpawned = false;
+  game.bigEnemyRef = null;
+  game.jumpTriggerSpawned = false;
+  game.cameraPanX = 0;
+  game.previewElapsedMs = 0;
+  game.previewActive = false;
+  game.previewPhase = "none";
   closeBugModal();
 }
 
 function setToast(text, durationMs = 1100) {
   game.toastText = text;
   game.toastMs = durationMs;
+}
+
+function showLockedToast(text) {
+  if (game.toastMs > 0) {
+    return;
+  }
+  setToast(text, 1200);
+}
+
+function showAlertOverlay(text, variant = "alert", options = {}) {
+  if (!ui.alertOverlay || !ui.alertOverlayText) {
+    return;
+  }
+  const durationMs = options.durationMs ?? 0;
+  const onDismiss = typeof options.onDismiss === "function" ? options.onDismiss : null;
+  if (game.overlayTimerId) {
+    clearTimeout(game.overlayTimerId);
+    game.overlayTimerId = 0;
+  }
+  if (game.overlayDismissHandler) {
+    ui.alertOverlay.removeEventListener("pointerdown", game.overlayDismissHandler);
+    game.overlayDismissHandler = null;
+  }
+  const isAlert = variant === "alert";
+  ui.alertOverlayText.textContent = text;
+  ui.alertOverlay.classList.remove("hidden");
+  ui.alertOverlay.classList.toggle("alert", isAlert);
+  ui.alertOverlay.classList.toggle("mission", variant === "mission");
+  ui.alertOverlay.classList.toggle("urgent", isAlert);
+  if (isAlert) {
+    playSfx("alert");
+  }
+
+  const dismiss = () => {
+    ui.alertOverlay.classList.add("hidden");
+    ui.alertOverlay.classList.remove("alert");
+    ui.alertOverlay.classList.remove("mission");
+    ui.alertOverlay.classList.remove("urgent");
+    if (game.overlayTimerId) {
+      clearTimeout(game.overlayTimerId);
+      game.overlayTimerId = 0;
+    }
+    if (game.overlayDismissHandler) {
+      ui.alertOverlay.removeEventListener("pointerdown", game.overlayDismissHandler);
+      game.overlayDismissHandler = null;
+    }
+    if (onDismiss) {
+      onDismiss();
+    }
+  };
+
+  game.overlayDismissHandler = () => {
+    dismiss();
+  };
+  ui.alertOverlay.addEventListener("pointerdown", game.overlayDismissHandler, { once: true });
+
+  if (durationMs > 0) {
+    game.overlayTimerId = window.setTimeout(() => {
+      dismiss();
+    }, durationMs);
+  }
+}
+
+function easeOutQuad(value) {
+  return 1 - (1 - value) * (1 - value);
+}
+
+function getPost1000Distance() {
+  return Math.max(0, game.distance - SKILL_DOUBLE_JUMP_DISTANCE);
+}
+
+function getSpeedScale() {
+  if (game.distance < SKILL_DOUBLE_JUMP_DISTANCE) {
+    return 1;
+  }
+  const extra = Math.min(0.45, (getPost1000Distance() / 2000) * 0.45);
+  return 1 + extra;
+}
+
+function getSpawnChanceBoost() {
+  if (game.distance < SKILL_DOUBLE_JUMP_DISTANCE) {
+    return 0;
+  }
+  return Math.min(0.25, (getPost1000Distance() / 2000) * 0.25);
+}
+
+function getDensityBoost() {
+  if (game.distance < SKILL_DOUBLE_JUMP_DISTANCE) {
+    return 0;
+  }
+  return Math.min(320, Math.floor(getPost1000Distance() / 120) * 40);
+}
+
+function startBigEnemyPreview() {
+  game.previewActive = true;
+  game.previewElapsedMs = 0;
+  game.previewPhase = "pan";
+  setToast("ウィーン...", 900);
 }
 
 function handleMissReset() {
@@ -635,6 +1137,21 @@ function handleMissReset() {
     return;
   }
 
+  const hasFixProgress =
+    game.moveRightFixSolved || game.moveLeftFixSolved || game.jumpFixSolved || game.shrinkFixSolved;
+  if (game.difficulty === "easy" && !game.easyKeepProgressUsed && hasFixProgress) {
+    game.easyKeepProgressUsed = true;
+    game.shakeMs = 140;
+    resetRunState({ resetBugs: false });
+    setToast("やさしくリスタート！ なおしたバグはそのまま", 1400);
+    track("easy_keep_progress_restart", {
+      distance: Math.round(game.distance),
+      best_distance: Math.round(game.bestDistance),
+      mistake_count: game.mistakes
+    });
+    return;
+  }
+
   game.shakeMs = 180;
   track("run_reset_on_miss", {
     distance: Math.round(game.distance),
@@ -642,27 +1159,87 @@ function handleMissReset() {
     mistake_count: game.mistakes,
     streak: streakBeforeMiss
   });
-  resetRunState();
+  resetRunState({ resetBugs: true });
+  beginMoveRightBugEvent();
 }
 
 function updateHud() {
   ui.hudTime.textContent = String(Math.round(game.bestDistance));
   ui.hudMiss.textContent = String(game.mistakes);
-  ui.hudBug.textContent = String(game.bugFound);
+  ui.hudBug.textContent = `${game.bugFound}/${TOTAL_BUGS}`;
   ui.hudDistance.textContent = String(Math.round(game.distance));
+  updateBugStatus();
+  updateControlState();
+}
+
+function updateBugStatus() {
+  if (!ui.bugStatus) {
+    return;
+  }
+  let text = "バグなし：正常運転";
+  let alert = false;
+  if (game.pausedForBug && game.activePuzzle) {
+    const isSkill = game.activePuzzle.definition.category === "skill";
+    text = `${isSkill ? "スキル解放" : "バグ発生"}：${game.activePuzzle.definition.status}`;
+    alert = true;
+  } else if (game.moveRightBugDone && !game.moveRightFixSolved) {
+    text = "バグ発生：右にすすめない";
+    alert = true;
+  } else if (game.moveLeftBugDone && !game.moveLeftFixSolved) {
+    text = "バグ発生：左にすすめない";
+    alert = true;
+  } else if (game.jumpBugDone && !game.jumpFixSolved) {
+    text = "バグ発生：ジャンプできない";
+    alert = true;
+  } else if (game.shrinkBugDone && !game.shrinkFixSolved) {
+    text = "バグ発生：巨大な敵が大きすぎる";
+    alert = true;
+  }
+  ui.bugStatus.textContent = text;
+  ui.bugStatus.classList.toggle("alert", alert);
+}
+
+function updateControlState() {
+  if (ui.moveLeftBtn) {
+    const locked = !game.moveLeftFixSolved;
+    ui.moveLeftBtn.classList.toggle("locked", locked);
+    ui.moveLeftBtn.setAttribute("aria-disabled", String(locked));
+  }
+  if (ui.moveRightBtn) {
+    const locked = !game.moveRightFixSolved;
+    ui.moveRightBtn.classList.toggle("locked", locked);
+    ui.moveRightBtn.setAttribute("aria-disabled", String(locked));
+  }
+  if (ui.gameHelp) {
+    const moveText =
+      game.moveRightFixSolved && game.moveLeftFixSolved
+        ? "画面 左=移動 / 右=移動"
+        : "左右はバグ修正で解放";
+    let jumpText = game.jumpFixSolved ? "真ん中=ジャンプ" : "ジャンプはバグ修正で解放";
+    if (game.jumpFixSolved && game.doubleJumpUnlocked) {
+      jumpText = "真ん中=ジャンプ(空中でもう1回OK)";
+    }
+    const stompText = game.stompUnlocked ? "上からふむ=敵をたおせる" : "";
+    ui.gameHelp.textContent = [moveText, jumpText, stompText].filter(Boolean).join(" / ");
+  }
 }
 
 function tryConsumeJump() {
   if (game.jumpBufferMs <= 0) {
     return;
   }
-  if (!game.player.grounded && game.coyoteMs <= 0) {
+  const canAirJump = game.doubleJumpUnlocked && !game.doubleJumpUsed;
+  if (!game.player.grounded && game.coyoteMs <= 0 && !canAirJump) {
     return;
   }
+  const usedAirJump = !game.player.grounded && game.coyoteMs <= 0;
   game.player.vy = -760;
   game.player.grounded = false;
   game.coyoteMs = 0;
   game.jumpBufferMs = 0;
+  if (usedAirJump) {
+    game.doubleJumpUsed = true;
+  }
   playSfx("jump");
 }
 
@@ -670,13 +1247,17 @@ function playerJump() {
   if (!game.running || game.pausedForBug) {
     return;
   }
+  if (!game.jumpFixSolved) {
+    showLockedToast(`ジャンプバグ中！${wordProgram()}で直そう。`);
+    return;
+  }
   game.jumpBufferMs = 140;
   tryConsumeJump();
 }
 
 function getMoveDir() {
-  const right = inputState.right ? 1 : 0;
-  const left = inputState.left ? 1 : 0;
+  const right = inputState.right && game.moveRightFixSolved ? 1 : 0;
+  const left = inputState.left && game.moveLeftFixSolved ? 1 : 0;
   return right - left;
 }
 
@@ -712,20 +1293,31 @@ function spawnCloudPlatform(difficulty) {
   });
 }
 
-function spawnGlitchWall(difficulty) {
-  game.obstacles.push({
-    kind: "glitch_wall",
-    x: canvas.width + 150,
-    y: 350,
-    w: 170,
-    h: 190,
-    speed: 140 * difficulty.speed,
+function applyEnemySize(obstacle, size) {
+  obstacle.w = size.w;
+  obstacle.h = size.h;
+  obstacle.y = 540 - obstacle.h;
+}
+
+function spawnBigEnemy(difficulty) {
+  const obstacle = {
+    kind: "big_enemy",
+    x: canvas.width + 120,
+    y: 540 - BIG_ENEMY_SIZE.h,
+    w: BIG_ENEMY_SIZE.w,
+    h: BIG_ENEMY_SIZE.h,
+    speed: 130 * difficulty.speed,
     contactMs: 0,
-    measured: false,
-    passedPlayer: false
-  });
-  game.obstacleCooldown = 1200;
-  game.glitchWallSpawned = true;
+    measured: false
+  };
+  if (game.shrinkFixSolved) {
+    applyEnemySize(obstacle, SMALL_ENEMY_SIZE);
+  }
+  game.obstacles.push(obstacle);
+  game.obstacleCooldown = 1400;
+  game.bigEnemySpawned = true;
+  game.bigEnemyRef = obstacle;
+  startBigEnemyPreview();
 }
 
 function spawnPit(difficulty) {
@@ -744,31 +1336,42 @@ function spawnPit(difficulty) {
   });
 }
 
-function spawnPostFixWall(difficulty) {
+function spawnJumpTriggerObstacle(difficulty) {
+  const height = 18 + randInt(8);
+  const width = 22 + randInt(10);
+  const speed = 120 * difficulty.speed;
   game.obstacles.push({
-    kind: "post_fix_wall",
-    x: canvas.width + 130,
-    y: 494,
-    w: 72,
-    h: 46,
-    speed: 125 * difficulty.speed,
+    kind: "normal",
+    x: canvas.width + 80,
+    y: 538 - height,
+    w: width,
+    h: height,
+    speed,
     contactMs: 0,
-    measured: false
+    measured: false,
+    jumpTrigger: true
   });
-  game.obstacleCooldown = 1000;
-  game.postFixWallSpawned = true;
+}
+
+
+function shrinkBigEnemy() {
+  if (!game.bigEnemyRef) {
+    return;
+  }
+  applyEnemySize(game.bigEnemyRef, SMALL_ENEMY_SIZE);
 }
 
 function hasUpcomingHazard() {
   return game.obstacles.some((obstacle) => {
-    if (obstacle.kind === "glitch_wall") {
-      return false;
-    }
     return obstacle.x > canvas.width * 0.56;
   });
 }
 
 function spawnRunHazard(difficulty) {
+  if (!game.jumpFixSolved) {
+    spawnObstacle(difficulty);
+    return;
+  }
   const canSpawnCloud = game.distance >= 55;
   const cloudChance = 14 + difficulty.gimmick_level * 5;
   if (canSpawnCloud && randInt(100) < cloudChance) {
@@ -796,6 +1399,18 @@ function maybeAwardDistanceBadge() {
   setToast(`${milestone}m とっぱ！`);
 }
 
+function checkSkillMilestones() {
+  if (!game.doubleJumpSkillDone && game.distance >= SKILL_DOUBLE_JUMP_DISTANCE) {
+    beginDoubleJumpSkillEvent();
+    return true;
+  }
+  if (!game.stompSkillDone && game.distance >= SKILL_STOMP_DISTANCE) {
+    beginStompSkillEvent();
+    return true;
+  }
+  return false;
+}
+
 function overlaps(a, b) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
@@ -816,18 +1431,6 @@ function getObstacleHitbox(obstacle) {
     w: obstacle.w,
     h: obstacle.h
   };
-}
-
-function overlapsWithOffset(playerRect, obstacle, xOffset) {
-  return overlaps(
-    {
-      x: playerRect.x + xOffset,
-      y: playerRect.y,
-      w: playerRect.w,
-      h: playerRect.h
-    },
-    getObstacleHitbox(obstacle)
-  );
 }
 
 function startPitFallReset() {
@@ -851,12 +1454,19 @@ function renderPuzzleSlots() {
     return;
   }
   ui.bugSlots.innerHTML = "";
-  active.definition.slots.forEach((slotLabel, index) => {
+  const slotCount = active.definition.slots.length;
+  active.definition.slots.forEach((_, index) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `bug-slot${active.placed[index] ? " filled" : ""}`;
+    const hasBlock = !!active.placed[index];
+    button.className = `bug-slot${hasBlock ? " filled" : " empty"}`;
     const block = active.blocksById[active.placed[index]];
-    button.textContent = `${slotLabel}: ${block ? block.label : "[タップで入る]"}`;
+    const slotTitle = slotCount > 1 ? `スロット${index + 1}` : "スロット";
+    const valueText = block ? block.label : "ここにいれる";
+    button.innerHTML = `
+      <span class="bug-slot-title">${slotTitle}</span>
+      <span class="bug-slot-value${block ? "" : " hint"}">${valueText}</span>
+    `;
     button.addEventListener("click", () => {
       if (!active.placed[index]) {
         return;
@@ -909,6 +1519,14 @@ function runPuzzleCheck() {
   ui.bugFeedback.style.color = "var(--ok)";
   ui.bugFeedback.textContent = "ナイス！なおせた！";
   playSfx("puzzle_ok");
+  if (ui.bugCard) {
+    ui.bugCard.classList.remove("puzzle-success");
+    void ui.bugCard.offsetWidth;
+    ui.bugCard.classList.add("puzzle-success");
+    window.setTimeout(() => {
+      ui.bugCard.classList.remove("puzzle-success");
+    }, 650);
+  }
   const timeSpentMs = Math.round(performance.now() - active.startedAtMs);
   setTimeout(() => {
     closeBugModal();
@@ -920,7 +1538,10 @@ function runPuzzleCheck() {
 }
 
 function openPuzzle(puzzleKey, onSuccess) {
-  const definition = PUZZLES[puzzleKey];
+  const definition = getPuzzleDefinition(puzzleKey);
+  if (!definition) {
+    return;
+  }
   const blocksById = {};
   definition.blocks.forEach((block) => {
     blocksById[block.id] = block;
@@ -939,9 +1560,10 @@ function openPuzzle(puzzleKey, onSuccess) {
   ui.bugTitle.textContent = definition.title;
   ui.bugDesc.textContent = definition.desc;
   ui.bugScene.textContent = definition.scene;
-  ui.bugCode.textContent = definition.buildCode(game);
+  ui.bugCode.textContent =
+    typeof definition.buildCode === "function" ? definition.buildCode(game) : definition.buildCode;
   if (!game.puzzleGuideShown) {
-    ui.bugFeedback.textContent = "はじめてガイド：したを2回タップすると、うえに左から入るよ。";
+    ui.bugFeedback.textContent = "したをタップして、うえに入れよう。";
     game.puzzleGuideShown = true;
   } else {
     ui.bugFeedback.textContent = "したをタップして、うえに入れよう。";
@@ -963,50 +1585,181 @@ function openPuzzle(puzzleKey, onSuccess) {
   ui.bugModal.classList.remove("hidden");
 }
 
-function beginMidBugEvent() {
-  if (game.midBugDone) {
+function beginMoveRightBugEvent() {
+  if (game.moveRightBugDone) {
     return;
   }
   game.pausedForBug = true;
-  game.midBugDone = true;
-  track("bug_mid_start");
+  game.moveRightBugDone = true;
+  inputState.left = false;
+  inputState.right = false;
+  showAlertOverlay("バグ発生!!!\n右にすすめない\nタップでなおすへ", "alert", {
+    onDismiss: () => {
+      openPuzzle("move_right", ({ wrongAttempts, timeSpentMs }) => {
+        game.bugFound += 1;
+        game.moveRightFixSolved = true;
+        game.pausedForBug = false;
+        updateControlState();
 
-  openPuzzle("mid", ({ wrongAttempts, timeSpentMs }) => {
-    game.bugFound += 1;
-    game.bugFixSolved = true;
-    game.collisionBugOffset = 0;
-    game.pausedForBug = false;
-
-    track("bug_mid_complete", {
-      is_correct: true,
-      wrong_attempts: wrongAttempts,
-      time_spent_ms: timeSpentMs
-    });
-
-    if (!game.postFixWallSpawned) {
-      const difficulty = game.config.difficulty[game.difficulty];
-      spawnPostFixWall(difficulty);
+        track("bug_move_right_complete", {
+          is_correct: true,
+          wrong_attempts: wrongAttempts,
+          time_spent_ms: timeSpentMs
+        });
+      });
     }
   });
+  track("bug_move_right_start");
 }
 
-function beginFinalBugEvent() {
-  if (game.finalBugDone) {
+function beginMoveLeftBugEvent({ skipAlert = false } = {}) {
+  if (game.moveLeftBugDone) {
+    return;
+  }
+  if (!game.moveRightFixSolved) {
     return;
   }
   game.pausedForBug = true;
-  game.finalBugDone = true;
-  track("bug_final_start");
+  game.moveLeftBugDone = true;
+  inputState.left = false;
+  inputState.right = false;
+  const open = () => {
+    openPuzzle("move_left", ({ wrongAttempts, timeSpentMs }) => {
+      game.bugFound += 1;
+      game.moveLeftFixSolved = true;
+      game.player.x = Math.max(10, game.player.x - 30);
+      game.pausedForBug = false;
+      updateControlState();
 
-  openPuzzle("final", ({ wrongAttempts, timeSpentMs }) => {
-    game.bugFound += 1;
-    track("bug_final_complete", {
-      is_correct: true,
-      wrong_attempts: wrongAttempts,
-      time_spent_ms: timeSpentMs
+      track("bug_move_left_complete", {
+        is_correct: true,
+        wrong_attempts: wrongAttempts,
+        time_spent_ms: timeSpentMs
+      });
     });
-    showResult();
+  };
+  if (skipAlert) {
+    open();
+  } else {
+    showAlertOverlay("バグ発生!!!\n左にすすめない\nタップでなおすへ", "alert", {
+      onDismiss: () => {
+        open();
+      }
+    });
+  }
+  track("bug_move_left_start");
+}
+
+function beginJumpBugEvent() {
+  if (game.jumpBugDone) {
+    return;
+  }
+  game.pausedForBug = true;
+  game.jumpBugDone = true;
+  inputState.left = false;
+  inputState.right = false;
+  showAlertOverlay("バグ発生!!!\nジャンプができない\nタップでなおすへ", "alert", {
+    onDismiss: () => {
+      openPuzzle("jump", ({ wrongAttempts, timeSpentMs }) => {
+        game.bugFound += 1;
+        game.jumpFixSolved = true;
+        game.pausedForBug = false;
+        updateControlState();
+
+        track("bug_jump_complete", {
+          is_correct: true,
+          wrong_attempts: wrongAttempts,
+          time_spent_ms: timeSpentMs
+        });
+      });
+    }
   });
+  track("bug_jump_start");
+}
+
+function beginShrinkBugEvent() {
+  if (game.shrinkBugDone) {
+    return;
+  }
+  game.pausedForBug = true;
+  game.shrinkBugDone = true;
+  inputState.left = false;
+  inputState.right = false;
+  showAlertOverlay(`バグ発生!!!\n敵が大きい！\n${wordProgramming()}で直そう\nタップでなおすへ`, "alert", {
+    onDismiss: () => {
+      openPuzzle("shrink", ({ wrongAttempts, timeSpentMs }) => {
+        game.bugFound += 1;
+        game.shrinkFixSolved = true;
+        shrinkBigEnemy();
+        game.pausedForBug = false;
+        updateControlState();
+
+        track("bug_shrink_complete", {
+          is_correct: true,
+          wrong_attempts: wrongAttempts,
+          time_spent_ms: timeSpentMs
+        });
+      });
+    }
+  });
+  track("bug_shrink_start");
+}
+
+function beginDoubleJumpSkillEvent() {
+  if (game.doubleJumpSkillDone) {
+    return;
+  }
+  game.doubleJumpSkillDone = true;
+  game.pausedForBug = true;
+  inputState.left = false;
+  inputState.right = false;
+  showAlertOverlay(
+    "1000m とっぱ！\nここからは きみのじつりょく！\nスピードアップ！\nスキル：2だんジャンプ\nタップでプログラミングへ",
+    "mission",
+    {
+      onDismiss: () => {
+        openPuzzle("double_jump", ({ wrongAttempts, timeSpentMs }) => {
+          game.doubleJumpUnlocked = true;
+          game.doubleJumpUsed = false;
+          game.pausedForBug = false;
+          updateControlState();
+          setToast("2だんジャンプ かいほう！", 1200);
+          track("skill_double_jump_unlock", {
+            wrong_attempts: wrongAttempts,
+            time_spent_ms: timeSpentMs
+          });
+        });
+      }
+    }
+  );
+}
+
+function beginStompSkillEvent() {
+  if (game.stompSkillDone) {
+    return;
+  }
+  game.stompSkillDone = true;
+  game.pausedForBug = true;
+  inputState.left = false;
+  inputState.right = false;
+  showAlertOverlay(
+    "2000m とっぱ！\nここからが本番！\nスキル：ふみつけ\nタップでプログラミングへ",
+    "mission",
+    {
+      onDismiss: () => {
+        openPuzzle("stomp", ({ wrongAttempts, timeSpentMs }) => {
+          game.stompUnlocked = true;
+          game.pausedForBug = false;
+          updateControlState();
+          setToast("ふみつけ かいほう！", 1200);
+          track("skill_stomp_unlock", {
+            wrong_attempts: wrongAttempts,
+            time_spent_ms: timeSpentMs
+          });
+        });
+      }
+    }
+  );
 }
 
 function tick(now) {
@@ -1030,13 +1783,54 @@ function tick(now) {
     return;
   }
 
+  if (game.previewActive) {
+    if (game.previewPhase === "pan") {
+      game.previewElapsedMs += dt * 1000;
+      const t = Math.min(1, game.previewElapsedMs / BIG_ENEMY_PREVIEW_MS);
+      game.cameraPanX = easeOutQuad(t) * BIG_ENEMY_PREVIEW_PAN;
+      if (t >= 1) {
+        game.previewPhase = "hold";
+        game.previewElapsedMs = 0;
+        showAlertOverlay("ウィーン...\nでかい！！巨大な敵が見えた！\nタップで戻る", "alert", {
+          onDismiss: () => {
+            game.previewPhase = "return";
+            game.previewElapsedMs = 0;
+          }
+        });
+      }
+    } else if (game.previewPhase === "return") {
+      game.previewElapsedMs += dt * 1000;
+      const t = Math.min(1, game.previewElapsedMs / BIG_ENEMY_RETURN_MS);
+      game.cameraPanX = (1 - easeOutQuad(t)) * BIG_ENEMY_PREVIEW_PAN;
+      if (t >= 1) {
+        game.previewActive = false;
+        game.previewPhase = "none";
+        game.cameraPanX = 0;
+        beginShrinkBugEvent();
+      }
+    } else {
+      game.cameraPanX = BIG_ENEMY_PREVIEW_PAN;
+    }
+    draw();
+    updateHud();
+    game.rafId = requestAnimationFrame(tick);
+    return;
+  }
+
   if (!game.pausedForBug) {
     const difficulty = game.config.difficulty[game.difficulty];
-    game.distance += dt * 24 * difficulty.speed;
+    const speedScale = getSpeedScale();
+    game.distance += dt * 24 * difficulty.speed * speedScale;
     if (game.distance > game.bestDistance) {
       game.bestDistance = game.distance;
     }
     maybeAwardDistanceBadge();
+    if (checkSkillMilestones()) {
+      draw();
+      updateHud();
+      game.rafId = requestAnimationFrame(tick);
+      return;
+    }
     game.toastMs = Math.max(0, game.toastMs - dt * 1000);
 
     game.jumpBufferMs = Math.max(0, game.jumpBufferMs - dt * 1000);
@@ -1065,22 +1859,53 @@ function tick(now) {
       landedOnSupport = true;
     }
 
-    if (!game.glitchWallSpawned && game.distance >= 120) {
-      spawnGlitchWall(difficulty);
+    if (
+      !game.bigEnemySpawned &&
+      game.moveRightFixSolved &&
+      game.moveLeftFixSolved &&
+      game.jumpFixSolved &&
+      !game.shrinkFixSolved &&
+      game.distance >= BIG_ENEMY_DISTANCE
+    ) {
+      spawnBigEnemy(difficulty);
     }
 
     game.obstacleCooldown -= dt * 1000;
+    if (game.pausedForBug) {
+      draw();
+      updateHud();
+      game.rafId = requestAnimationFrame(tick);
+      return;
+    }
+    if (
+      game.moveLeftFixSolved &&
+      !game.jumpBugDone &&
+      !game.jumpTriggerSpawned &&
+      game.distance >= JUMP_TRIGGER_DISTANCE
+    ) {
+      spawnJumpTriggerObstacle(difficulty);
+      game.jumpTriggerSpawned = true;
+    }
     if (
       game.obstacleCooldown <= 0 &&
       !game.pausedForBug &&
       game.runGraceMs <= 0 &&
-      game.distance >= 30 &&
+      game.distance >= HAZARD_START_DISTANCE &&
+      game.moveLeftFixSolved &&
+      game.jumpFixSolved &&
       !hasUpcomingHazard()
     ) {
-      spawnRunHazard(difficulty);
       const ramp = Math.min(420, Math.floor(game.distance / 70) * 60);
-      const base = 1400 - difficulty.gimmick_level * 160 - difficulty.bug_frequency * 110 - ramp;
-      game.obstacleCooldown = Math.max(700, base + randInt(260));
+      const densityBoost = getDensityBoost();
+      const base =
+        1400 - difficulty.gimmick_level * 160 - difficulty.bug_frequency * 110 - ramp - densityBoost;
+      const baseChance = typeof difficulty.spawn_chance === "number" ? difficulty.spawn_chance : 1;
+      const spawnChance = Math.min(1, baseChance + getSpawnChanceBoost());
+      if (Math.random() <= spawnChance) {
+        spawnRunHazard(difficulty);
+      }
+      const minCooldown = game.distance >= SKILL_DOUBLE_JUMP_DISTANCE ? 520 : 700;
+      game.obstacleCooldown = Math.max(minCooldown, base + randInt(260));
     }
 
     const playerRect = {
@@ -1091,20 +1916,36 @@ function tick(now) {
     };
     let playerHitbox = getPlayerHitbox(playerRect);
 
-    let shouldTriggerMidBug = false;
+    let triggeredShrinkBug = false;
+    let triggeredJumpBug = false;
     let shouldResetRun = false;
     let shouldFallReset = false;
     game.obstacles.forEach((obstacle) => {
-      obstacle.x -= obstacle.speed * dt;
+      if (triggeredShrinkBug || triggeredJumpBug) {
+        return;
+      }
+      obstacle.x -= obstacle.speed * speedScale * dt;
 
-      if (obstacle.kind === "glitch_wall" && !game.bugFixSolved) {
-        const buggyHit = overlapsWithOffset(playerHitbox, obstacle, game.collisionBugOffset);
-        if (buggyHit) {
-          // この時点ではバグ状態なので、衝突は発生しない。
-        }
-        if (!obstacle.passedPlayer && obstacle.x + obstacle.w < playerHitbox.x + 2) {
-          obstacle.passedPlayer = true;
-          shouldTriggerMidBug = true;
+      if (
+        obstacle.kind === "normal" &&
+        obstacle.jumpTrigger &&
+        game.moveRightFixSolved &&
+        game.moveLeftFixSolved &&
+        !game.jumpFixSolved &&
+        !game.jumpBugDone &&
+        obstacle.x < canvas.width - JUMP_BUG_TRIGGER_OFFSET
+      ) {
+        obstacle.remove = true;
+        beginJumpBugEvent();
+        triggeredJumpBug = true;
+        return;
+      }
+
+      // 画面に見えたら巨大な敵のバグ修正を開く
+      if (obstacle.kind === "big_enemy" && !game.shrinkFixSolved) {
+        if (!game.shrinkBugDone && obstacle.x < canvas.width - 20) {
+          beginShrinkBugEvent();
+          triggeredShrinkBug = true;
         }
         return;
       }
@@ -1121,6 +1962,38 @@ function tick(now) {
           landedOnSupport = true;
           playerRect.y = game.player.y;
           playerHitbox = getPlayerHitbox(playerRect);
+        }
+      }
+
+      const canStomp =
+        game.stompUnlocked &&
+        (obstacle.kind === "normal" || (obstacle.kind === "big_enemy" && game.shrinkFixSolved));
+      if (canStomp) {
+        const top = obstacle.y;
+        const currentBottom = playerRect.y + playerRect.h;
+        const overlapX =
+          playerRect.x < obstacle.x + obstacle.w - 4 && playerRect.x + playerRect.w > obstacle.x + 4;
+        if (game.player.vy > 0 && overlapX && previousBottom <= top + 6 && currentBottom >= top) {
+          obstacle.remove = true;
+          obstacle.measured = true;
+          game.obstacleCount += 1;
+          game.obstacleCleared += 1;
+          game.clearStreak += 1;
+          if (game.clearStreak > game.bestStreak) {
+            game.bestStreak = game.clearStreak;
+          }
+          if (game.clearStreak > 0 && game.clearStreak % 5 === 0) {
+            setToast(`${game.clearStreak}れんぞく回避！`, 900);
+          }
+          game.player.y = obstacle.y - game.player.h;
+          game.player.vy = -520;
+          game.player.grounded = false;
+          game.coyoteMs = 0;
+          game.jumpBufferMs = 0;
+          game.doubleJumpUsed = false;
+          playSfx("stomp");
+          setToast("ふみつけ！", 800);
+          return;
         }
       }
 
@@ -1161,19 +2034,19 @@ function tick(now) {
     });
 
     game.obstacles = game.obstacles.filter((obstacle) => {
+      if (obstacle.remove) {
+        return false;
+      }
       if (obstacle.x + obstacle.w < -15) {
         return false;
-      }
-      if (obstacle.kind === "glitch_wall" && obstacle.passedPlayer) {
-        return false;
-      }
-      if (obstacle.kind === "glitch_wall" && !game.bugFixSolved) {
-        return true;
       }
       if (obstacle.kind === "pit") {
         return true;
       }
       if (obstacle.kind === "cloud_platform") {
+        return true;
+      }
+      if (obstacle.kind === "big_enemy" && !game.shrinkFixSolved) {
         return true;
       }
 
@@ -1190,6 +2063,7 @@ function tick(now) {
 
     if (landedOnSupport) {
       game.player.grounded = true;
+      game.doubleJumpUsed = false;
       game.coyoteMs = 120;
       tryConsumeJump();
     } else {
@@ -1206,8 +2080,11 @@ function tick(now) {
       startPitFallReset();
     }
 
-    if (shouldTriggerMidBug && !shouldResetRun && !shouldFallReset) {
-      beginMidBugEvent();
+    if (triggeredShrinkBug || triggeredJumpBug) {
+      draw();
+      updateHud();
+      game.rafId = requestAnimationFrame(tick);
+      return;
     }
   }
 
@@ -1338,6 +2215,7 @@ function drawPixelPlayer(player) {
 
 function draw() {
   const shakeX = game.shakeMs > 0 ? randInt(4) - 2 : 0;
+  const panX = game.cameraPanX || 0;
   const scroll = game.distance * 3.4;
   const zone = Math.floor(game.bestDistance / 220) % 3;
   const skyList = ["#b9e4ff", "#aedfff", "#cfe8ff"];
@@ -1347,7 +2225,7 @@ function draw() {
 
   ctx.save();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.translate(shakeX, 0);
+  ctx.translate(shakeX - panX, 0);
 
   ctx.fillStyle = skyColor;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -1440,7 +2318,7 @@ function draw() {
 }
 
 function computeDiagnosis() {
-  const bugRate = Math.min(100, game.bugFound * 100);
+  const bugRate = Math.min(100, Math.round((game.bugFound / TOTAL_BUGS) * 100));
   const timingRate =
     game.timingTotal > 0 ? Math.round((game.timingHits / game.timingTotal) * 100) : 0;
   const breakRate =
@@ -1537,6 +2415,12 @@ function startGame() {
   game.lastAt = game.startAt;
   playSfx("start");
   startBgm();
+  game.pausedForBug = true;
+  showAlertOverlay("ミッション：\nバグをなおして\nゲームを正常にしよう！！\nタップでつぎへ", "mission", {
+    onDismiss: () => {
+      beginMoveRightBugEvent();
+    }
+  });
   cancelAnimationFrame(game.rafId);
   game.rafId = requestAnimationFrame(tick);
 }
@@ -1624,28 +2508,64 @@ function wireEvents() {
     });
   }
 
-  const bindMoveButton = (button, key) => {
-    if (!button) {
-      return;
+  const getTapZone = (event) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const ratio = rect.width > 0 ? x / rect.width : 0.5;
+    if (ratio < 0.33) {
+      return "left";
     }
-    const onDown = (event) => {
-      event.preventDefault();
-      inputState[key] = true;
-    };
-    const onUp = (event) => {
-      event.preventDefault();
-      inputState[key] = false;
-    };
-    button.addEventListener("pointerdown", onDown);
-    button.addEventListener("pointerup", onUp);
-    button.addEventListener("pointercancel", onUp);
-    button.addEventListener("pointerleave", onUp);
+    if (ratio > 0.66) {
+      return "right";
+    }
+    return "center";
   };
 
-  bindMoveButton(ui.moveLeftBtn, "left");
-  bindMoveButton(ui.moveRightBtn, "right");
+  const stopMove = () => {
+    inputState.left = false;
+    inputState.right = false;
+  };
 
-  canvas.addEventListener("pointerdown", playerJump);
+  const onCanvasDown = (event) => {
+    event.preventDefault();
+    unlockAudio();
+    if (!game.running || game.pausedForBug) {
+      return;
+    }
+    const zone = getTapZone(event);
+    if (zone === "center") {
+      playerJump();
+      return;
+    }
+    if (zone === "left") {
+      if (!game.moveLeftFixSolved) {
+        if (!game.moveRightFixSolved) {
+          showLockedToast("まず右をなおそう。");
+          return;
+        }
+        if (!game.moveLeftBugDone) {
+          beginMoveLeftBugEvent();
+          return;
+        }
+        showLockedToast(`左バグ中！${wordProgram()}で直そう。`);
+        return;
+      }
+      inputState.left = true;
+      inputState.right = false;
+      return;
+    }
+    if (!game.moveRightFixSolved) {
+      showLockedToast(`右バグ中！${wordProgram()}で直そう。`);
+      return;
+    }
+    inputState.right = true;
+    inputState.left = false;
+  };
+
+  canvas.addEventListener("pointerdown", onCanvasDown);
+  canvas.addEventListener("pointerup", stopMove);
+  canvas.addEventListener("pointercancel", stopMove);
+  canvas.addEventListener("pointerleave", stopMove);
   window.addEventListener("pointerdown", unlockAudio, { passive: true });
   window.addEventListener("keydown", (event) => {
     unlockAudio();
@@ -1656,11 +2576,27 @@ function wireEvents() {
     }
     if (event.code === "ArrowLeft" || event.code === "KeyA") {
       event.preventDefault();
+      if (!game.moveLeftFixSolved) {
+        if (!game.moveRightFixSolved) {
+          showLockedToast("まず右をなおそう。");
+          return;
+        }
+        if (!game.moveLeftBugDone) {
+          beginMoveLeftBugEvent();
+          return;
+        }
+        showLockedToast(`左バグ中！${wordProgram()}で直そう。`);
+        return;
+      }
       inputState.left = true;
       return;
     }
     if (event.code === "ArrowRight" || event.code === "KeyD") {
       event.preventDefault();
+      if (!game.moveRightFixSolved) {
+        showLockedToast(`右バグ中！${wordProgram()}で直そう。`);
+        return;
+      }
       inputState.right = true;
     }
   });

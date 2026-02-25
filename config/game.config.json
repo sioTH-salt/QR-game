@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "QRコードゲーム2",
+    "title": "バグなおしラン",
     "language": "ja",
     "cta_url": "https://www.programming-cloud.com/trial/",
     "privacy_note": "ゲーム中に個人情報入力はありません。"
@@ -13,34 +13,25 @@
   },
   "difficulty": {
     "easy": {
-      "label": "易しい",
-      "speed": 0.5,
+      "label": "かんたん",
+      "speed": 0.55,
       "gimmick_level": 0,
-      "bug_frequency": 0
-    },
-    "easy_plus": {
-      "label": "やや易しい",
-      "speed": 0.68,
-      "gimmick_level": 1,
-      "bug_frequency": 0
+      "bug_frequency": 0,
+      "spawn_chance": 0.5
     },
     "normal": {
       "label": "ふつう",
       "speed": 0.85,
       "gimmick_level": 1,
-      "bug_frequency": 1
-    },
-    "hard_minus": {
-      "label": "やや難しい",
-      "speed": 1.05,
-      "gimmick_level": 2,
-      "bug_frequency": 1
+      "bug_frequency": 1,
+      "spawn_chance": 1
     },
     "hard": {
-      "label": "難しい",
-      "speed": 1.25,
-      "gimmick_level": 3,
-      "bug_frequency": 2
+      "label": "むずかしい",
+      "speed": 1.05,
+      "gimmick_level": 2,
+      "bug_frequency": 1,
+      "spawn_chance": 1
     }
   },
   "diagnosis": {
@@ -72,10 +63,14 @@
       "game_start",
       "game_quit_mid",
       "game_complete",
-      "bug_mid_start",
-      "bug_mid_complete",
-      "bug_final_start",
-      "bug_final_complete",
+      "bug_move_right_start",
+      "bug_move_right_complete",
+      "bug_move_left_start",
+      "bug_move_left_complete",
+      "bug_jump_start",
+      "bug_jump_complete",
+      "bug_shrink_start",
+      "bug_shrink_complete",
       "cta_click",
       "form_visit"
     ],

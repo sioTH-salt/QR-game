@@ -6,3 +6,4 @@ Thumbs.db
 !.env.example
 
 play-qr.png
+docs/chat-history-*.md
