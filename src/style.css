@@ -114,11 +114,7 @@ body {
 .topbar .sub,
 .build-tag,
 .help,
-.guardian-note,
 .game-help,
-.type-comment,
-.reserve-prompt-lead,
-.reserve-prompt-sub,
 .bug-desc,
 .bug-scene,
 .bug-howto {
@@ -162,115 +158,12 @@ body {
   content: "🔴";
 }
 
-.btn {
-  font-size: 0;
-}
-
-/* 操作ボタンのラベルは記号で簡潔に表現する。 */
-.btn::before {
-  font-size: 1rem;
-}
-
-#start-btn::before {
-  content: "▶";
-}
-
-#quit-btn::before {
-  content: "⏹";
-}
-
-#retry-btn::before {
-  content: "↻";
-}
-
-#cta-btn::before,
-#reserve-go-btn::before {
-  content: "🚀";
-}
-
-#reserve-restart-btn::before {
-  content: "↺";
-}
-
 #audio-toggle-btn::before {
   content: "🔊";
 }
 
 #audio-toggle-btn.off::before {
   content: "🔇";
-}
-
-.hud span {
-  font-size: 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-/* HUDと結果リストはアイコン+数値で情報を伝える。 */
-.hud span::before {
-  font-size: 1rem;
-}
-
-.hud span:nth-child(1)::before {
-  content: "🏁";
-}
-
-.hud span:nth-child(2)::before {
-  content: "💥";
-}
-
-.hud span:nth-child(3)::before {
-  content: "🧩";
-}
-
-.hud span:nth-child(4)::before {
-  content: "📏";
-}
-
-.hud b {
-  font-size: 0.98rem;
-}
-
-.score-list {
-  list-style: none;
-  padding-left: 0;
-}
-
-.score-list li {
-  font-size: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 4px 0;
-}
-
-.score-list li::before {
-  font-size: 1rem;
-}
-
-.score-list li:nth-child(1)::before {
-  content: "⭐";
-}
-
-.score-list li:nth-child(2)::before {
-  content: "🧩";
-}
-
-.score-list li:nth-child(3)::before {
-  content: "📏";
-}
-
-.score-list li:nth-child(4)::before {
-  content: "🔥";
-}
-
-.score-list li:nth-child(5)::before {
-  content: "💥";
-}
-
-.score-list li b {
-  font-size: 1rem;
 }
 
 .help,
@@ -369,31 +262,6 @@ body {
   align-items: center;
   gap: 6px;
   font-size: 0.83rem;
-}
-
-/* 診断軸ラベルはテキストを省いて記号化する。 */
-.axis-row span {
-  font-size: 0;
-}
-
-.axis-row span::before {
-  font-size: 1rem;
-}
-
-.axis-row:nth-child(1) span::before {
-  content: "🔎";
-}
-
-.axis-row:nth-child(2) span::before {
-  content: "🧠";
-}
-
-.axis-row:nth-child(3) span::before {
-  content: "⚡";
-}
-
-.axis-row:nth-child(4) span::before {
-  content: "🛡";
 }
 
 .axis-track {
