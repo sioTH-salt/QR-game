@@ -1522,11 +1522,7 @@ function renderPuzzleSlots() {
       <span class="bug-slot-value${block ? "" : " hint"}" data-icon="${iconKind}" aria-hidden="true"></span>
     `;
     button.addEventListener("click", () => {
-      if (!active.placed[index]) {
-        return;
-      }
-      active.placed[index] = null;
-      ui.bugFeedback.textContent = "";
+      active.selectedSlotIndex = index;
       renderPuzzleSlots();
     });
     ui.bugSlots.appendChild(button);
