@@ -1531,6 +1531,22 @@ function renderPuzzleSlots() {
     });
     ui.bugSlots.appendChild(button);
   });
+  syncPuzzleOptionSelection();
+}
+
+// 選択中スロットの現在値と一致する候補ボタンを強調する。
+function syncPuzzleOptionSelection() {
+  const active = game.activePuzzle;
+  if (!active) {
+    return;
+  }
+  const selectedIndex = active.selectedSlotIndex;
+  const selectedBlockId =
+    typeof selectedIndex === "number" && selectedIndex >= 0 ? active.placed[selectedIndex] : null;
+  ui.bugBlocks.querySelectorAll(".bug-block").forEach((button) => {
+    const isCurrent = !!selectedBlockId && button.dataset.blockId === selectedBlockId;
+    button.classList.toggle("is-current", isCurrent);
+  });
 }
 
 function placeBlock(blockId) {
@@ -1538,13 +1554,21 @@ function placeBlock(blockId) {
   if (!active) {
     return;
   }
-  const emptyIndex = active.placed.findIndex((value) => !value);
-  if (emptyIndex === -1) {
-    ui.bugFeedback.style.color = "var(--danger)";
-    ui.bugFeedback.textContent = "うえがいっぱい！入れかえる時は、うえをタップしてね。";
-    return;
+  // 候補タップ時は選択中スロットへ反映し、未選択時は空きへ補完する。
+  let targetIndex = active.selectedSlotIndex;
+  if (typeof targetIndex !== "number" || targetIndex < 0 || targetIndex >= active.placed.length) {
+    targetIndex = active.placed.findIndex((value) => !value);
+    if (targetIndex === -1) {
+      targetIndex = 0;
+    }
   }
-  active.placed[emptyIndex] = blockId;
+  active.placed[targetIndex] = blockId;
+  const nextEmptyIndex = active.placed.findIndex((value) => !value);
+  if (nextEmptyIndex !== -1) {
+    active.selectedSlotIndex = nextEmptyIndex;
+  } else {
+    active.selectedSlotIndex = targetIndex;
+  }
   ui.bugFeedback.textContent = "";
   renderPuzzleSlots();
 }
