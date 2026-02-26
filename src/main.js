@@ -1448,6 +1448,55 @@ function closeBugModal() {
   game.activePuzzle = null;
 }
 
+// ブロックIDをUI表示用のアイコン種別へ変換する。
+function getBlockIconKind(blockId) {
+  switch (blockId) {
+    case "move_right":
+      return "arrow-right";
+    case "move_left":
+      return "arrow-left";
+    case "move_right_off":
+    case "move_left_off":
+    case "jump_off":
+    case "double_jump_off":
+    case "stomp_off":
+    case "tap_ignore":
+      return "ban";
+    case "jump_on":
+      return "jump";
+    case "if_tap_right":
+      return "tap-right";
+    case "if_tap_left":
+      return "tap-left";
+    case "if_tap_center":
+      return "tap-center";
+    case "if_tap_side":
+      return "tap-side";
+    case "size_small":
+    case "hitbox_small":
+      return "shrink";
+    case "size_big":
+    case "hitbox_big":
+      return "expand";
+    case "double_jump_on":
+      return "double-jump";
+    case "jump_one":
+      return "single-jump";
+    case "if_second_jump":
+    case "if_first_jump":
+      return "condition";
+    case "stomp_on":
+      return "stomp";
+    case "if_stomp":
+      return "stomp-condition";
+    case "touch_damage":
+    case "if_touch":
+      return "touch";
+    default:
+      return "dot";
+  }
+}
+
 function renderPuzzleSlots() {
   const active = game.activePuzzle;
   if (!active) {
