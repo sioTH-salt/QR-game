@@ -1508,7 +1508,9 @@ function renderPuzzleSlots() {
     const button = document.createElement("button");
     button.type = "button";
     const hasBlock = !!active.placed[index];
-    button.className = `bug-slot${hasBlock ? " filled" : " empty"}`;
+    // 選択中スロットを視覚的に区別する。
+    const selected = index === active.selectedSlotIndex;
+    button.className = `bug-slot${hasBlock ? " filled" : " empty"}${selected ? " selected" : ""}`;
     const block = active.blocksById[active.placed[index]];
     const slotTitle = slotCount > 1 ? `スロット${index + 1}` : "スロット";
     const valueText = block ? block.label : "ここにいれる";
