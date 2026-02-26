@@ -1626,6 +1626,8 @@ function openPuzzle(puzzleKey, onSuccess) {
     definition,
     blocksById,
     placed: new Array(definition.slots.length).fill(null),
+    // パズル開始時に先頭スロットを選択状態にする。
+    selectedSlotIndex: 0,
     startedAtMs: performance.now(),
     wrongAttempts: 0,
     onSuccess
