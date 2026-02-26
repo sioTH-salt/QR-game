@@ -896,6 +896,10 @@ function buildDifficultyButtons(config) {
     button.type = "button";
     button.className = "difficulty-btn";
     button.textContent = item.label;
+    // 難易度キーをUI属性に保持して見た目制御とアクセシビリティに使う。
+    button.dataset.difficulty = key;
+    button.setAttribute("aria-label", item.label);
+    button.title = item.label;
     if (game.difficulty === key) {
       button.classList.add("active");
     }
