@@ -1662,6 +1662,7 @@ function openPuzzle(puzzleKey, onSuccess) {
     // 候補ごとに識別IDを持たせて現在値ハイライト同期に使う。
     button.dataset.blockId = block.id;
     button.dataset.icon = getBlockIconKind(block.id);
+    button.dataset.label = block.label;
     button.setAttribute("aria-label", block.label);
     button.title = block.label;
     button.textContent = block.label;
