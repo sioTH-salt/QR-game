@@ -1514,9 +1514,12 @@ function renderPuzzleSlots() {
     const block = active.blocksById[active.placed[index]];
     const slotTitle = slotCount > 1 ? `スロット${index + 1}` : "スロット";
     const valueText = block ? block.label : "ここにいれる";
+    // スロット内容はテキストではなくアイコン属性で描画する。
+    const iconKind = block ? getBlockIconKind(block.id) : "empty";
+    button.setAttribute("aria-label", `${slotTitle}${selected ? " (選択中)" : ""}: ${valueText}`);
     button.innerHTML = `
       <span class="bug-slot-title">${slotTitle}</span>
-      <span class="bug-slot-value${block ? "" : " hint"}">${valueText}</span>
+      <span class="bug-slot-value${block ? "" : " hint"}" data-icon="${iconKind}" aria-hidden="true"></span>
     `;
     button.addEventListener("click", () => {
       if (!active.placed[index]) {
