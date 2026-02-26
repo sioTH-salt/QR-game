@@ -1644,12 +1644,8 @@ function openPuzzle(puzzleKey, onSuccess) {
   ui.bugScene.textContent = definition.scene;
   ui.bugCode.textContent =
     typeof definition.buildCode === "function" ? definition.buildCode(game) : definition.buildCode;
-  if (!game.puzzleGuideShown) {
-    ui.bugFeedback.textContent = "したをタップして、うえに入れよう。";
-    game.puzzleGuideShown = true;
-  } else {
-    ui.bugFeedback.textContent = "したをタップして、うえに入れよう。";
-  }
+  ui.bugFeedback.textContent = "";
+  game.puzzleGuideShown = true;
   ui.bugFeedback.style.color = "var(--ink)";
 
   renderPuzzleSlots();
