@@ -1648,15 +1648,21 @@ function openPuzzle(puzzleKey, onSuccess) {
 
   renderPuzzleSlots();
   ui.bugBlocks.innerHTML = "";
-  const shuffledBlocks = shuffleArray(definition.blocks);
-  shuffledBlocks.forEach((block) => {
+  const blockOrder = shuffleArray(definition.blocks);
+  blockOrder.forEach((block) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = `bug-block${block.bad ? " bad" : ""}`;
+    // 候補ごとに識別IDを持たせて現在値ハイライト同期に使う。
+    button.dataset.blockId = block.id;
+    button.dataset.icon = getBlockIconKind(block.id);
+    button.setAttribute("aria-label", block.label);
+    button.title = block.label;
     button.textContent = block.label;
     button.addEventListener("click", () => placeBlock(block.id));
     ui.bugBlocks.appendChild(button);
   });
+  syncPuzzleOptionSelection();
 
   ui.bugModal.classList.remove("hidden");
 }
