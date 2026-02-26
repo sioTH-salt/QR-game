@@ -303,17 +303,17 @@ const PUZZLES = {
         slots: ["①", "②"],
         slotHints: ["小", "当たり"],
         blocks: [
-          { id: "size_small", label: "敵を小さくする", bad: false },
-          { id: "hitbox_small", label: "当たり判定を小さくする", bad: false },
-          { id: "size_big", label: "敵を大きくする", bad: true },
-          { id: "hitbox_big", label: "当たり判定を大きくする", bad: true }
+          { id: "size_small", label: "敵の見た目を小さくする", bad: false },
+          { id: "hitbox_small", label: "敵の当たり判定を小さくする", bad: false },
+          { id: "size_big", label: "敵の見た目を大きくする", bad: true },
+          { id: "hitbox_big", label: "敵の当たり判定を大きくする", bad: true }
         ],
         answer: ["size_small", "hitbox_small"],
         hints: [
-          "ヒント：小さくするブロックが必要だよ。",
-          "ヒント：『敵を小さくする → 当たり判定を小さくする』だよ。"
+          "ヒント：見た目と当たり判定の2つを小さくしよう。",
+          "ヒント：『敵の見た目を小さくする → 敵の当たり判定を小さくする』だよ。"
         ],
-        answerText: "こたえ：敵を小さくする → 当たり判定を小さくする",
+        answerText: "こたえ：敵の見た目を小さくする → 敵の当たり判定を小さくする",
         buildCode: "いま：敵サイズ = 大\nめざす：敵サイズ = 小"
       }
     }
@@ -1477,11 +1477,13 @@ function getBlockIconKind(blockId) {
     case "if_tap_side":
       return "tap-side";
     case "size_small":
+      return "shrink-size";
     case "hitbox_small":
-      return "shrink";
+      return "shrink-hitbox";
     case "size_big":
+      return "expand-size";
     case "hitbox_big":
-      return "expand";
+      return "expand-hitbox";
     case "double_jump_on":
       return "double-jump";
     case "jump_one":
