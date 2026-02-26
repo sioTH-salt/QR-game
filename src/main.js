@@ -303,17 +303,17 @@ const PUZZLES = {
         slots: ["①", "②"],
         slotHints: ["小", "当たり"],
         blocks: [
-          { id: "size_small", label: "敵を小さくする", bad: false },
-          { id: "hitbox_small", label: "当たり判定を小さくする", bad: false },
-          { id: "size_big", label: "敵を大きくする", bad: true },
-          { id: "hitbox_big", label: "当たり判定を大きくする", bad: true }
+          { id: "size_small", label: "敵の見た目を小さくする", bad: false },
+          { id: "hitbox_small", label: "敵の当たり判定を小さくする", bad: false },
+          { id: "size_big", label: "敵の見た目を大きくする", bad: true },
+          { id: "hitbox_big", label: "敵の当たり判定を大きくする", bad: true }
         ],
         answer: ["size_small", "hitbox_small"],
         hints: [
-          "ヒント：小さくするブロックが必要だよ。",
-          "ヒント：『敵を小さくする → 当たり判定を小さくする』だよ。"
+          "ヒント：見た目と当たり判定の2つを小さくしよう。",
+          "ヒント：『敵の見た目を小さくする → 敵の当たり判定を小さくする』だよ。"
         ],
-        answerText: "こたえ：敵を小さくする → 当たり判定を小さくする",
+        answerText: "こたえ：敵の見た目を小さくする → 敵の当たり判定を小さくする",
         buildCode: "いま：敵サイズ = 大\nめざす：敵サイズ = 小"
       }
     }
@@ -896,6 +896,10 @@ function buildDifficultyButtons(config) {
     button.type = "button";
     button.className = "difficulty-btn";
     button.textContent = item.label;
+    // 難易度キーをUI属性に保持して見た目制御とアクセシビリティに使う。
+    button.dataset.difficulty = key;
+    button.setAttribute("aria-label", item.label);
+    button.title = item.label;
     if (game.difficulty === key) {
       button.classList.add("active");
     }
@@ -1448,6 +1452,57 @@ function closeBugModal() {
   game.activePuzzle = null;
 }
 
+// ブロックIDをUI表示用のアイコン種別へ変換する。
+function getBlockIconKind(blockId) {
+  switch (blockId) {
+    case "move_right":
+      return "arrow-right";
+    case "move_left":
+      return "arrow-left";
+    case "move_right_off":
+    case "move_left_off":
+    case "jump_off":
+    case "double_jump_off":
+    case "stomp_off":
+    case "tap_ignore":
+      return "ban";
+    case "jump_on":
+      return "jump";
+    case "if_tap_right":
+      return "tap-right";
+    case "if_tap_left":
+      return "tap-left";
+    case "if_tap_center":
+      return "tap-center";
+    case "if_tap_side":
+      return "tap-side";
+    case "size_small":
+      return "shrink-size";
+    case "hitbox_small":
+      return "shrink-hitbox";
+    case "size_big":
+      return "expand-size";
+    case "hitbox_big":
+      return "expand-hitbox";
+    case "double_jump_on":
+      return "double-jump";
+    case "jump_one":
+      return "single-jump";
+    case "if_second_jump":
+    case "if_first_jump":
+      return "condition";
+    case "stomp_on":
+      return "stomp";
+    case "if_stomp":
+      return "stomp-condition";
+    case "touch_damage":
+    case "if_touch":
+      return "touch";
+    default:
+      return "dot";
+  }
+}
+
 function renderPuzzleSlots() {
   const active = game.activePuzzle;
   if (!active) {
@@ -1459,23 +1514,40 @@ function renderPuzzleSlots() {
     const button = document.createElement("button");
     button.type = "button";
     const hasBlock = !!active.placed[index];
-    button.className = `bug-slot${hasBlock ? " filled" : " empty"}`;
+    // 選択中スロットを視覚的に区別する。
+    const selected = index === active.selectedSlotIndex;
+    button.className = `bug-slot${hasBlock ? " filled" : " empty"}${selected ? " selected" : ""}`;
     const block = active.blocksById[active.placed[index]];
     const slotTitle = slotCount > 1 ? `スロット${index + 1}` : "スロット";
     const valueText = block ? block.label : "ここにいれる";
+    // スロット内容はテキストではなくアイコン属性で描画する。
+    const iconKind = block ? getBlockIconKind(block.id) : "empty";
+    button.setAttribute("aria-label", `${slotTitle}${selected ? " (選択中)" : ""}: ${valueText}`);
     button.innerHTML = `
       <span class="bug-slot-title">${slotTitle}</span>
-      <span class="bug-slot-value${block ? "" : " hint"}">${valueText}</span>
+      <span class="bug-slot-value${block ? "" : " hint"}" data-icon="${iconKind}" aria-hidden="true"></span>
     `;
     button.addEventListener("click", () => {
-      if (!active.placed[index]) {
-        return;
-      }
-      active.placed[index] = null;
-      ui.bugFeedback.textContent = "";
+      active.selectedSlotIndex = index;
       renderPuzzleSlots();
     });
     ui.bugSlots.appendChild(button);
+  });
+  syncPuzzleOptionSelection();
+}
+
+// 選択中スロットの現在値と一致する候補ボタンを強調する。
+function syncPuzzleOptionSelection() {
+  const active = game.activePuzzle;
+  if (!active) {
+    return;
+  }
+  const selectedIndex = active.selectedSlotIndex;
+  const selectedBlockId =
+    typeof selectedIndex === "number" && selectedIndex >= 0 ? active.placed[selectedIndex] : null;
+  ui.bugBlocks.querySelectorAll(".bug-block").forEach((button) => {
+    const isCurrent = !!selectedBlockId && button.dataset.blockId === selectedBlockId;
+    button.classList.toggle("is-current", isCurrent);
   });
 }
 
@@ -1484,13 +1556,21 @@ function placeBlock(blockId) {
   if (!active) {
     return;
   }
-  const emptyIndex = active.placed.findIndex((value) => !value);
-  if (emptyIndex === -1) {
-    ui.bugFeedback.style.color = "var(--danger)";
-    ui.bugFeedback.textContent = "うえがいっぱい！入れかえる時は、うえをタップしてね。";
-    return;
+  // 候補タップ時は選択中スロットへ反映し、未選択時は空きへ補完する。
+  let targetIndex = active.selectedSlotIndex;
+  if (typeof targetIndex !== "number" || targetIndex < 0 || targetIndex >= active.placed.length) {
+    targetIndex = active.placed.findIndex((value) => !value);
+    if (targetIndex === -1) {
+      targetIndex = 0;
+    }
   }
-  active.placed[emptyIndex] = blockId;
+  active.placed[targetIndex] = blockId;
+  const nextEmptyIndex = active.placed.findIndex((value) => !value);
+  if (nextEmptyIndex !== -1) {
+    active.selectedSlotIndex = nextEmptyIndex;
+  } else {
+    active.selectedSlotIndex = targetIndex;
+  }
   ui.bugFeedback.textContent = "";
   renderPuzzleSlots();
 }
@@ -1552,6 +1632,8 @@ function openPuzzle(puzzleKey, onSuccess) {
     definition,
     blocksById,
     placed: new Array(definition.slots.length).fill(null),
+    // パズル開始時に先頭スロットを選択状態にする。
+    selectedSlotIndex: 0,
     startedAtMs: performance.now(),
     wrongAttempts: 0,
     onSuccess
@@ -1562,25 +1644,28 @@ function openPuzzle(puzzleKey, onSuccess) {
   ui.bugScene.textContent = definition.scene;
   ui.bugCode.textContent =
     typeof definition.buildCode === "function" ? definition.buildCode(game) : definition.buildCode;
-  if (!game.puzzleGuideShown) {
-    ui.bugFeedback.textContent = "したをタップして、うえに入れよう。";
-    game.puzzleGuideShown = true;
-  } else {
-    ui.bugFeedback.textContent = "したをタップして、うえに入れよう。";
-  }
+  ui.bugFeedback.textContent = "";
+  game.puzzleGuideShown = true;
   ui.bugFeedback.style.color = "var(--ink)";
 
   renderPuzzleSlots();
   ui.bugBlocks.innerHTML = "";
-  const shuffledBlocks = shuffleArray(definition.blocks);
-  shuffledBlocks.forEach((block) => {
+  const blockOrder = shuffleArray(definition.blocks);
+  blockOrder.forEach((block) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = `bug-block${block.bad ? " bad" : ""}`;
+    // 候補ごとに識別IDを持たせて現在値ハイライト同期に使う。
+    button.dataset.blockId = block.id;
+    button.dataset.icon = getBlockIconKind(block.id);
+    button.dataset.label = block.label;
+    button.setAttribute("aria-label", block.label);
+    button.title = block.label;
     button.textContent = block.label;
     button.addEventListener("click", () => placeBlock(block.id));
     ui.bugBlocks.appendChild(button);
   });
+  syncPuzzleOptionSelection();
 
   ui.bugModal.classList.remove("hidden");
 }
